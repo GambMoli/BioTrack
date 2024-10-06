@@ -1,0 +1,23 @@
+.BotonModulo {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: white;
+    color: black;
+    font-weight: 600;
+    border-radius: 20px;
+    width: 100%; /* Mantiene el ancho completo de la celda */
+     
+   
+}
+
+.GridContainer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap; /* Asegura que los botones puedan ajustarse si hay poco espacio */
+    height: 50vh; 
+    margin-top: 5%;
+    padding: 0px 10px;
+}

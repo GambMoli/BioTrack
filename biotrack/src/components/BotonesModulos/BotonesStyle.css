@@ -1,0 +1,9 @@
+.BotonModulo{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background-color: #EFEFEF !important;
+    color: black !important;
+    align-items: center;
+    
+}

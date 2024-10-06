@@ -1,0 +1,5 @@
+export * from  './Register'
+export * from './Login'
+export * from './PrincipalPage'
+export * from './SPO2PAGE'
+export * from './FCPage'

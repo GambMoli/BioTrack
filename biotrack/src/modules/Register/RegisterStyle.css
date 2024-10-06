@@ -1,0 +1,43 @@
+.ContenedorFormulario {
+    width: 40%;
+    text-align: center;
+    height: 100%;
+    margin-top: 90px;
+}
+
+.contenedorImg {
+    background-color: #E5E5E569;
+    width: 60%;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}
+
+.Formulario {
+    text-align: start;
+    margin-left: 55px;
+    margin-top: 30px;
+    margin-right: 55px;
+    height: 100%;
+}
+
+.contenedorRegister {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    height: 100vh; /* Ajustar la altura al 100% del viewport */
+}
+
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%; /* Asegúrate de que el body y el html llenen el viewport */
+    overflow: hidden; /* Para evitar scroll no deseado */
+}
+.BotonesContenedor{
+    display: flex;
+    justify-content: space-between;
+}
