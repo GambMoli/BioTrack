@@ -17,6 +17,12 @@ export const PrincipalPage: React.FC = () => {
     const frecuenciaCardiacaModulo = () => {
        navigate("/MedidorFrecuencia");
     };
+    const HistorialOxigeno=()=>{
+        navigate("/HistorialO2");
+    }
+    const HistorialFC = ()=> {
+        navigate("/HistorialFC");
+    }
 
     return (
         <Box
@@ -60,9 +66,9 @@ export const PrincipalPage: React.FC = () => {
                     <Grid item xs={12} sm={6} md={3}>
                         <BotonesModulos
                             text="Ver Historial FC"
-                            value="97%"
-                            subValue='Normal SpO2'
-                            onClick={oxigenoSangreModulo}
+                            value="65lpm"
+                            subValue='Normal LPM'
+                            onClick={HistorialFC}
                         />
                     </Grid>
 
@@ -71,7 +77,7 @@ export const PrincipalPage: React.FC = () => {
                             text="Ver Historial SpO2"
                             value='97%'
                             subValue='Normal SpO2'
-                            onClick={frecuenciaCardiacaModulo}
+                            onClick={HistorialOxigeno}
                         />
                     </Grid>
                 </Grid>

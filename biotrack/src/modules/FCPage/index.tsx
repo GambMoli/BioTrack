@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Box, Grid, Typography } from '@mui/material';
+import { Box, Grid,  } from '@mui/material';
 import { BotonesModulos, Header } from '../../components';
 import Fondo from '../../assets/FondoPrincipalPage.jpg';
 import imagenSrc from '../../assets/FrecuenciaCardiaca.png';
