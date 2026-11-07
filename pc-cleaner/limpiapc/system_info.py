@@ -64,9 +64,11 @@ class MemoryInfo:
 # --------------------------------------------------------------------------- #
 def os_description() -> str:
     if IS_WINDOWS:
-        build = sys.getwindowsversion().build
-        name = "Windows 11" if build >= 22000 else f"Windows {platform.release()}"
-        return f"{name} (compilación {build})"
+        version = sys.getwindowsversion()
+        if getattr(version, "product_type", 1) != 1:  # 1 = escritorio; 2 y 3 = servidor
+            return f"Windows Server (compilación {version.build})"
+        name = "Windows 11" if version.build >= 22000 else f"Windows {platform.release()}"
+        return f"{name} (compilación {version.build})"
     if IS_MAC:
         return f"macOS {platform.mac_ver()[0]}"
     try:
