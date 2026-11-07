@@ -18,7 +18,6 @@ jobs:
       run:
         working-directory: pc-cleaner
     env:
-      LIMPIAPC_TEST_TMP: ${{ runner.temp }}
       PYTHONIOENCODING: utf-8
     steps:
       - uses: actions/checkout@v4
@@ -28,6 +27,9 @@ jobs:
           python-version: "3.12"
 
       - name: Pruebas del motor
+        env:
+          # %TEMP% está dentro de AppData, que el organizador (con razón) no deja tocar.
+          LIMPIAPC_TEST_TMP: ${{ runner.temp }}
         run: python -m unittest discover -s tests -v
 
       - name: Recorrido completo de la interfaz (datos de prueba aislados)
