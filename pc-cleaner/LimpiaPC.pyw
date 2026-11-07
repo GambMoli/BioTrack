@@ -5,6 +5,6 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from limpiapc.ui import main  # noqa: E402
+from limpiapc.gui import main  # noqa: E402
 
 main()

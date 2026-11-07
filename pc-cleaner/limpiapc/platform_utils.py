@@ -195,6 +195,55 @@ def relaunch_as_admin() -> bool:
 
 
 # --------------------------------------------------------------------------- #
+# Carpetas del usuario (Descargas, Escritorio…)
+# --------------------------------------------------------------------------- #
+_KNOWN_FOLDERS = (
+    ("Descargas", "{374DE290-123F-4565-9164-39C4925E467B}", ("Downloads", "Descargas")),
+    ("Escritorio", "{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}", ("Desktop", "Escritorio")),
+    ("Documentos", "{FDD39AD0-238F-46AF-ADB4-6C85480369C7}", ("Documents", "Documentos")),
+    ("Imágenes", "{33E28130-4E1E-4676-835A-98395C3BC3BB}", ("Pictures", "Imágenes")),
+    ("Vídeos", "{18989B1D-99B5-455B-841C-AB7C74E4DDFC}", ("Videos", "Vídeos")),
+    ("Música", "{4BD8D571-6D19-48D3-BE97-422220080E43}", ("Music", "Música")),
+)
+
+
+def _windows_known_folder(guid_text: str) -> str | None:
+    import ctypes
+    import uuid
+    from ctypes import wintypes
+
+    class GUID(ctypes.Structure):
+        _fields_ = [("Data1", wintypes.DWORD), ("Data2", wintypes.WORD), ("Data3", wintypes.WORD),
+                    ("Data4", ctypes.c_ubyte * 8)]
+
+    guid = GUID.from_buffer_copy(uuid.UUID(guid_text).bytes_le)
+    pointer = ctypes.c_wchar_p()
+    result = ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(guid), 0, None, ctypes.byref(pointer))
+    try:
+        return pointer.value if result == 0 else None
+    finally:
+        ctypes.windll.ole32.CoTaskMemFree(pointer)
+
+
+def user_folders() -> list[tuple[str, str]]:
+    """[(nombre, ruta)] de la carpeta de usuario y sus carpetas conocidas que existan."""
+    home = os.path.expanduser("~")
+    folders = [("Mi carpeta de usuario", home)]
+    for name, guid, fallbacks in _KNOWN_FOLDERS:
+        path = None
+        if IS_WINDOWS:
+            try:
+                path = _windows_known_folder(guid)
+            except Exception:
+                path = None
+        if not path:
+            path = next((os.path.join(home, f) for f in fallbacks if os.path.isdir(os.path.join(home, f))), None)
+        if path and os.path.isdir(path) and all(os.path.normcase(path) != os.path.normcase(p) for _, p in folders):
+            folders.append((name, path))
+    return folders
+
+
+# --------------------------------------------------------------------------- #
 # Abrir archivos y carpetas
 # --------------------------------------------------------------------------- #
 def open_target(target: str) -> None:

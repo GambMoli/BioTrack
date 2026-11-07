@@ -29,7 +29,8 @@ def make_file(path, size=10, old=False):
 
 class TempDirTest(unittest.TestCase):
     def setUp(self):
-        self._tmp = tempfile.TemporaryDirectory()
+        # En Windows %TEMP% está dentro de AppData, que el organizador (con razón) rechaza.
+        self._tmp = tempfile.TemporaryDirectory(dir=os.environ.get("LIMPIAPC_TEST_TMP") or None)
         self.tmp = os.path.realpath(self._tmp.name)
         # El directorio temporal del sistema suele estar fuera de las rutas protegidas,
         # pero "home" apunta a un sitio que controlamos.
