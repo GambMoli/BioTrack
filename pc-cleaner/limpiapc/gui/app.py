@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import queue
+import sys
+import tempfile
 import threading
 import tkinter as tk
 import traceback
@@ -214,7 +217,43 @@ def _prepare_windows_process() -> None:
         pass
 
 
+def _selftest() -> int:
+    """Abre la app, recorre todas las pantallas y se cierra sola (para comprobar el .exe).
+
+    Devuelve 0 si todo fue bien; si no, deja el error en %TEMP%\\limpiapc-selftest.log.
+    """
+    errors: list[str] = []
+    try:
+        app = App()
+        app.report_callback_exception = lambda et, ev, tb: errors.append(
+            "".join(traceback.format_exception(et, ev, tb)))
+        app._show_error = lambda exc: errors.append(repr(exc))  # sin ventanas modales
+        keys = list(app.pages)
+
+        def visit(index: int = 0) -> None:
+            if index >= len(keys):
+                app.after(800, app.destroy)
+                return
+            try:
+                app.show(keys[index])
+            except Exception:  # noqa: BLE001
+                errors.append(traceback.format_exc())
+            app.after(400, lambda: visit(index + 1))  # pase lo que pase, a la siguiente
+
+        app.after(800, visit)
+        app.after(60_000, app.destroy)  # por si algo se queda colgado
+        app.mainloop()
+    except Exception:  # noqa: BLE001
+        errors.append(traceback.format_exc())
+    log = os.path.join(tempfile.gettempdir(), "limpiapc-selftest.log")
+    with open(log, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(errors) if errors else "OK\n")
+    return 1 if errors else 0
+
+
 def main() -> None:
     _prepare_windows_process()
+    if "--selftest" in sys.argv:
+        sys.exit(_selftest())
     app = App()
     app.mainloop()

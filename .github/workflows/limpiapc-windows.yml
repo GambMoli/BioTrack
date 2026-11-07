@@ -42,14 +42,18 @@ jobs:
           python -m pip install --quiet pyinstaller
           python -m PyInstaller --noconfirm --clean --onefile --windowed --name LimpiaPC LimpiaPC.pyw
 
-      - name: Comprobar que LimpiaPC.exe arranca
+      - name: Autoprueba de LimpiaPC.exe (abre todas las pantallas y se cierra)
         shell: pwsh
         run: |
-          $p = Start-Process -FilePath dist\LimpiaPC.exe -PassThru
-          Start-Sleep -Seconds 20
-          if ($p.HasExited) { Write-Error "LimpiaPC.exe se cerró al arrancar (código $($p.ExitCode))"; exit 1 }
-          Get-Process -Name LimpiaPC -ErrorAction SilentlyContinue | Stop-Process -Force
-          Write-Output "LimpiaPC.exe arrancó correctamente."
+          $p = Start-Process -FilePath dist\LimpiaPC.exe -ArgumentList "--selftest" -PassThru
+          $null = $p.Handle  # necesario para poder leer ExitCode después
+          if (-not $p.WaitForExit(180000)) {
+            Get-Process -Name LimpiaPC -ErrorAction SilentlyContinue | Stop-Process -Force
+            Write-Error "LimpiaPC.exe no terminó la autoprueba a tiempo"; exit 1
+          }
+          Get-Content "$env:TEMP\limpiapc-selftest.log"
+          if ($p.ExitCode -ne 0) { Write-Error "La autoprueba de LimpiaPC.exe falló (código $($p.ExitCode))"; exit 1 }
+          Write-Output "LimpiaPC.exe abrió todas las pantallas sin errores."
 
       - name: Subir LimpiaPC.exe
         uses: actions/upload-artifact@v4
