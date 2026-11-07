@@ -51,14 +51,14 @@ def recycle_bin_supported() -> bool:
     return IS_WINDOWS
 
 
-def recycle_bin_info() -> Optional[tuple[int, int]]:
+def recycle_bin_info(drive: Optional[str] = None) -> Optional[tuple[int, int]]:
     """(bytes, nº de elementos) de la papelera de Windows, o None si no se puede saber."""
     if not IS_WINDOWS:
         return None
     try:
         info = _SHQUERYRBINFO()
         info.cbSize = ctypes.sizeof(info)
-        hr = ctypes.windll.shell32.SHQueryRecycleBinW(None, ctypes.byref(info))
+        hr = ctypes.windll.shell32.SHQueryRecycleBinW(drive, ctypes.byref(info))
         if hr != 0:
             return None
         return int(info.i64Size), int(info.i64NumItems)
@@ -66,11 +66,11 @@ def recycle_bin_info() -> Optional[tuple[int, int]]:
         return None
 
 
-def empty_recycle_bin() -> tuple[bool, str]:
+def empty_recycle_bin(drive: Optional[str] = None) -> tuple[bool, str]:
     if not IS_WINDOWS:
         return False, "Solo disponible en Windows."
     try:
-        hr = ctypes.windll.shell32.SHEmptyRecycleBinW(None, None, _SHERB_FLAGS)
+        hr = ctypes.windll.shell32.SHEmptyRecycleBinW(None, drive, _SHERB_FLAGS)
     except Exception as exc:  # pragma: no cover - depende de Windows
         return False, str(exc)
     if hr == 0 or (hr & 0xFFFFFFFF) == _E_UNEXPECTED:

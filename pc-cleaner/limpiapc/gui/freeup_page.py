@@ -6,7 +6,7 @@ import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from .. import APP_NAME, freeup, winsys
+from .. import APP_NAME, freeup, system_info, winsys
 from ..platform_utils import IS_WINDOWS, format_count, human_size, open_target
 from .theme import C, F, px
 from .widgets import CheckBox, FlatButton, Page, ScrollFrame, UsageBar, card, label, plural
@@ -78,8 +78,6 @@ class FreeUpPage(Page):
     def __init__(self, app):
         self.drive = winsys.system_drive()
         self.drive_name = self.drive.rstrip("\\") if IS_WINDOWS else self.drive
-        if IS_WINDOWS:
-            self.title = f"Liberar espacio en {self.drive_name}"
         super().__init__(app)
         self.rows: list[TaskRow] = []
         self.cancel = threading.Event()
@@ -93,7 +91,20 @@ class FreeUpPage(Page):
         top.columnconfigure(1, weight=2, uniform="top")
         disk = card(top)
         disk.grid(row=0, column=0, sticky="nsew", padx=(0, px(8)))
-        label(disk, f"DISCO DEL SISTEMA ({self.drive_name})", F.small_bold, C.muted).pack(anchor="w")
+        disk_head = tk.Frame(disk, bg=C.card)
+        disk_head.pack(fill="x")
+        self.disk_title = label(disk_head, f"DISCO DEL SISTEMA ({self.drive_name})", F.small_bold, C.muted)
+        self.disk_title.pack(side="left")
+        self.system_drive = self.drive
+        self.drive_choices = {d.label: d.mount for d in system_info.get_disks()}
+        if len(self.drive_choices) > 1:
+            self.drive_var = tk.StringVar(value=next((k for k, v in self.drive_choices.items()
+                                                      if v.lower() == self.drive.lower()), ""))
+            box = ttk.Combobox(disk_head, textvariable=self.drive_var, values=list(self.drive_choices),
+                               state="readonly", width=24, font=F.small)
+            box.pack(side="right")
+            box.bind("<<ComboboxSelected>>", lambda e: self._change_drive())
+            label(disk_head, "Disco:", F.small, C.muted).pack(side="right", padx=(0, px(6)))
         self.free_value = label(disk, "—", F.big)
         self.free_value.pack(anchor="w")
         self.disk_bar = UsageBar(disk, C.card, height=12)
@@ -136,8 +147,9 @@ class FreeUpPage(Page):
         extras = tk.Frame(self.body, bg=C.bg)
         extras.pack(side="bottom", fill="x", pady=(px(10), 0))
         label(extras, "También:", F.small, C.faint).pack(side="left", padx=(0, px(6)))
-        FlatButton(extras, f"Ver qué ocupa {self.drive_name}", lambda: app.analyze_space(self.drive),
-                   kind="secondary", small=True).pack(side="left", padx=(0, px(6)))
+        self.space_btn = FlatButton(extras, f"Ver qué ocupa {self.drive_name}", lambda: app.analyze_space(self.drive),
+                   kind="secondary", small=True)
+        self.space_btn.pack(side="left", padx=(0, px(6)))
         FlatButton(extras, "Buscar duplicados", lambda: app.show("duplicates"), kind="secondary",
                    small=True).pack(side="left", padx=(0, px(6)))
         if IS_WINDOWS:
@@ -160,6 +172,18 @@ class FreeUpPage(Page):
         self.refresh_disk()
         if not self.analyzed and not self.busy and not getattr(self.app, "selftest", False):
             self.analyze()
+
+    def _change_drive(self) -> None:
+        mount = self.drive_choices.get(self.drive_var.get())
+        if not mount or self.busy or mount == self.drive:
+            return
+        self.drive = mount
+        self.drive_name = mount.rstrip("\\") if IS_WINDOWS else mount
+        is_system = freeup.is_system_drive(mount)
+        self.disk_title.configure(text=f"{'DISCO DEL SISTEMA' if is_system else 'DISCO'} ({self.drive_name})")
+        self.space_btn.configure(text=f"Ver qué ocupa {self.drive_name}")
+        self.refresh_disk()
+        self.analyze()
 
     def refresh_disk(self) -> None:
         try:
@@ -218,11 +242,12 @@ class FreeUpPage(Page):
         self.progress.start(12)
         self.status.configure(text="Analizando…", fg=C.muted)
         admin = self.app.admin
+        drive = self.drive
 
         def say(text: str) -> None:
             self.app.post(self.status.configure, text=text)
 
-        self.app.run_bg(lambda: freeup.detect(admin, dev_root=freeup.default_dev_root(), cancel=self.cancel,
+        self.app.run_bg(lambda: freeup.detect(admin, dev_root=freeup.default_dev_root(), cancel=self.cancel, drive=drive,
                                               say=say), self._detected, self._failed)
 
     def _stop_progress(self) -> None:

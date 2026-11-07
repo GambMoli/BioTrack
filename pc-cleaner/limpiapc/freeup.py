@@ -24,7 +24,9 @@ CACHE_CATEGORIES_EXCLUDED = {"recycle_bin", "windows_update", "gpu_shaders", "np
 DEV_CATEGORIES = ("npm", "yarn", "pip", "nuget")
 # Carpetas de la carpeta de usuario donde nunca se buscan node_modules: ahí viven programas
 # instalados (npm global en AppData, extensiones de VS Code en .vscode…).
-NODE_SEARCH_SKIP = {"appdata", "$recycle.bin", "library", "application data", "ntuser"}
+NODE_SEARCH_SKIP = {"appdata", "$recycle.bin", "library", "application data", "ntuser",
+                    "windows", "program files", "program files (x86)", "programdata",
+                    "system volume information", "recovery", "windows.old"}
 
 
 @dataclass
@@ -137,9 +139,43 @@ def _top_note(scans: list, limit: int = 3) -> str:
     return ", ".join(f"{name}: {human_size(size)}" for size, name in parts)
 
 
+def is_system_drive(drive: Optional[str]) -> bool:
+    return drive is None or os.path.normcase(drive.rstrip("\\/")) == os.path.normcase(
+        winsys.system_drive().rstrip("\\/"))
+
+
+def detect_other_drive(drive: str, *, cancel: Optional[threading.Event] = None,
+                       say: Optional[SAY] = None) -> list[FreeTask]:
+    """Para un disco que no es el del sistema: su papelera y node_modules olvidados."""
+    from . import trash
+
+    say = say or (lambda _text: None)
+    tasks: list[FreeTask] = []
+    if IS_WINDOWS:
+        say(f"Mirando la papelera de {drive}…")
+        info = trash.recycle_bin_info(drive)
+        tasks.append(FreeTask(
+            "drive_recycle_bin", "Recomendado", f"Vaciar la papelera de {drive.rstrip(chr(92))}",
+            "Lo que borraste de este disco sigue ocupando espacio hasta que vacías su papelera.",
+            warning="Lo que haya en la papelera se borrará para siempre.",
+            estimate=info[0] if info else None, payload=[drive]))
+    say(f"Buscando node_modules de proyectos olvidados en {drive}…")
+    projects = find_old_node_modules(drive, cancel=cancel, say=say)
+    if projects:
+        names = ", ".join(p.project for p in projects[:4]) + ("…" if len(projects) > 4 else "")
+        tasks.append(FreeTask(
+            "node_modules", "Opcional",
+            f"node_modules de {len(projects)} proyecto{'s' if len(projects) != 1 else ''} sin tocar hace más de 30 días",
+            "Las dependencias se recuperan con «npm install» cuando vuelvas al proyecto. Tu código no se toca.",
+            default_on=False, estimate=sum(p.size for p in projects), note=names, payload=projects))
+    return tasks
+
+
 def detect(admin: bool, *, dev_root: Optional[str] = None, cancel: Optional[threading.Event] = None,
-           say: Optional[SAY] = None) -> list[FreeTask]:
+           say: Optional[SAY] = None, drive: Optional[str] = None) -> list[FreeTask]:
     """Qué se puede liberar y cuánto (no borra nada)."""
+    if not is_system_drive(drive):
+        return detect_other_drive(drive, cancel=cancel, say=say)
     say = say or (lambda _text: None)
     tasks: list[FreeTask] = []
     categories = {c.id: c for c in cleaner.available_categories()}
@@ -263,7 +299,7 @@ def _detect_windows(tasks, categories, admin, cancel, say) -> None:
 # --------------------------------------------------------------------------- #
 # Ejecución
 # --------------------------------------------------------------------------- #
-ORDER = ("caches", "recycle_bin", "windows_update", "dev_caches", "node_modules", "gpu_shaders",
+ORDER = ("caches", "recycle_bin", "drive_recycle_bin", "windows_update", "dev_caches", "node_modules", "gpu_shaders",
          "hibernation", "restore_points", "reserved_storage", "windows_cleanup", "components", "compact_os")
 
 
@@ -314,6 +350,13 @@ def execute(task: FreeTask, *, cancel: Optional[threading.Event] = None,
         result = _clean_scans(task.payload, cancel)
     elif task.id == "node_modules":
         result = _clean_node_modules(task.payload, cancel)
+    elif task.id == "drive_recycle_bin":
+        from . import trash
+
+        result = TaskResult("")
+        ok, message = trash.empty_recycle_bin(task.payload[0])
+        result.freed = (task.estimate or 0) if ok else 0
+        result.error = "" if ok else message
     else:
         result = _execute_windows(task, say)
     result.task_id = task.id

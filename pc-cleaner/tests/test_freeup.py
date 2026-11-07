@@ -130,6 +130,25 @@ class DetectTests(TempDirTest):
         self.assertIn("Acceso denegado", result.error)
 
 
+class OtherDriveTests(TempDirTest):
+    def test_other_drive_offers_recycle_bin_and_node_modules_only(self):
+        drive = os.path.join(self.tmp, "D")
+        make_project(os.path.join(drive, "Proyectos"), "viejo")
+        make_project(os.path.join(drive, "Program Files"), "instalado")  # programas: no
+        with mock.patch.object(freeup, "IS_WINDOWS", True), \
+                mock.patch.object(winsys, "system_drive", return_value="C:\\"), \
+                mock.patch("limpiapc.trash.recycle_bin_info", return_value=(4000, 3)) as info:
+            tasks = {t.id: t for t in freeup.detect(admin=True, drive=drive)}
+        info.assert_called_once_with(drive)
+        self.assertEqual(set(tasks), {"drive_recycle_bin", "node_modules"})
+        self.assertEqual(tasks["drive_recycle_bin"].estimate, 4000)
+        self.assertEqual([p.project for p in tasks["node_modules"].payload], ["viejo"])
+        with mock.patch("limpiapc.trash.empty_recycle_bin", return_value=(False, "error")) as empty:
+            result = freeup.execute(tasks["drive_recycle_bin"])
+        empty.assert_called_once_with(drive)
+        self.assertEqual((result.freed, result.error), (0, "error"))
+
+
 class FakeRegistry:
     HKEY_LOCAL_MACHINE, KEY_READ, KEY_SET_VALUE, KEY_WOW64_64KEY, REG_DWORD = 2, 1, 2, 4, 4
 
