@@ -49,6 +49,7 @@ Al terminar te dice cuánto espacio libre ganó C: (medido de verdad, antes y de
 | Pantalla | Para qué sirve |
 |---|---|
 | **Análisis de espacio** | Qué carpetas pesan más (árbol con barras), reparto por tipo (vídeos, fotos, juegos, instaladores, AppData…) y los 1000 archivos más grandes: abrir, **mover a otro disco** o enviar a la papelera. |
+| **Optimizar Windows** | Quita anuncios y sugerencias, la búsqueda de Bing en Inicio, el ID de publicidad, la telemetría (admin), la grabación de juegos en segundo plano y apps en segundo plano; opcional: transparencias y la espera de los programas de inicio. Todo se deshace con «Restaurar». También quita apps preinstaladas de relleno (Candy Crush, Clipchamp, TikTok…), que se reinstalan desde la Store. |
 | **Limpieza a medida** | Lo mismo que la limpieza de temporales y cachés, pero eligiendo categoría por categoría. |
 | **Organizar** | Ordena Descargas, Escritorio, etc. en subcarpetas por tipo (Imágenes, Vídeos, Documentos, Instaladores…) o por fecha. Enseña la propuesta antes y se puede **deshacer**. |
 | **Duplicados** | Archivos repetidos aunque tengan otro nombre (compara el contenido). Deja una copia. |

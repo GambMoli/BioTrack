@@ -18,6 +18,7 @@ from .clean import CleanPage
 from .dashboard import DashboardPage
 from .duplicates_page import DuplicatesPage
 from .freeup_page import FreeUpPage
+from .optimize_page import OptimizePage
 from .organize import OrganizePage
 from .space import SpacePage
 from .startup_page import StartupPage
@@ -27,7 +28,7 @@ from .widgets import FlatButton, Page, label
 
 
 class Sidebar(tk.Frame):
-    ITEMS = (("freeup", "Liberar espacio"), ("space", "Análisis de espacio"), ("clean", "Limpieza a medida"),
+    ITEMS = (("freeup", "Liberar espacio"), ("space", "Análisis de espacio"), ("optimize", "Optimizar Windows"), ("clean", "Limpieza a medida"),
              ("organize", "Organizar"), ("duplicates", "Duplicados"), ("startup", "Programas al iniciar"),
              ("dashboard", "Estado del PC"), ("tools", "Herramientas"))
 
@@ -120,7 +121,7 @@ class App(tk.Tk):
         self.content.pack(side="left", fill="both", expand=True)
         self.pages: dict[str, Page] = {}
         for key, page_class in (("dashboard", DashboardPage), ("freeup", FreeUpPage), ("space", SpacePage),
-                                ("clean", CleanPage), ("organize", OrganizePage),
+                                ("optimize", OptimizePage), ("clean", CleanPage), ("organize", OrganizePage),
                                 ("duplicates", DuplicatesPage), ("startup", StartupPage), ("tools", ToolsPage)):
             self.pages[key] = page_class(self)
         self.show("freeup")
