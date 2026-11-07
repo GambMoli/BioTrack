@@ -32,6 +32,9 @@ jobs:
           LIMPIAPC_TEST_TMP: ${{ runner.temp }}
         run: python -m unittest discover -s tests -v
 
+      - name: Pruebas con las APIs reales de Windows (papelera, registro, carpetas)
+        run: python tests/windows_integration.py
+
       - name: Recorrido completo de la interfaz (datos de prueba aislados)
         run: |
           python -m pip install --quiet pillow

@@ -75,5 +75,10 @@ limpiapc/
 tests/               pruebas automáticas + recorrido de la interfaz
 ```
 
-La compilación de Windows está en `.github/workflows/limpiapc-windows.yml`: ejecuta las pruebas,
-recorre toda la interfaz con datos de prueba aislados (con capturas), crea `LimpiaPC.exe` y comprueba que arranca.
+La compilación de Windows está en `.github/workflows/limpiapc-windows.yml`, en una máquina Windows real:
+
+1. pruebas del motor (`tests/test_*.py`);
+2. pruebas con las APIs reales de Windows: papelera, registro de inicio, carpetas conocidas, CPU/RAM/discos
+   (`tests/windows_integration.py`, solo para máquinas desechables: crea y borra una entrada de inicio de prueba);
+3. recorrido completo de la interfaz con datos falsos aislados y capturas (`tests/ui_smoke.py`);
+4. crea `LimpiaPC.exe` y ejecuta `LimpiaPC.exe --selftest`, que abre todas las pantallas y falla si alguna da error.
