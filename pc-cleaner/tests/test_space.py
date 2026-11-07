@@ -118,6 +118,14 @@ class OrganizerTests(TempDirTest):
         dest = next(m.dest_dir for m in plan if m.name == "factura.pdf")
         self.assertEqual(os.path.relpath(dest, self.downloads), os.path.join("2023", "03 - Marzo"))
 
+    def test_symlinks_are_not_moved(self):
+        target = make_file(os.path.join(self.tmp, "fuera", "real.pdf"), old=True)
+        os.symlink(target, os.path.join(self.downloads, "enlace.pdf"))
+        with self._ctime_ok():
+            names = {m.name for m in organizer.plan_organize(self.downloads, "type")}
+        self.assertNotIn("enlace.pdf", names)
+        self.assertIn("factura.pdf", names)
+
     def test_recent_files_are_left_alone(self):
         plan = organizer.plan_organize(self.downloads, "type")
         self.assertEqual(plan, [])  # todo se creó hace segundos (ctime)

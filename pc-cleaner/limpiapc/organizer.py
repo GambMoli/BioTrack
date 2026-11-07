@@ -19,7 +19,7 @@ from typing import Callable, Optional
 from .cleaner import is_protected, is_within, norm
 from .filetypes import TYPES_BY_ID, type_for_extension
 from .fileops import unique_path
-from .fsutil import FILE_ATTRIBUTE_REPARSE_POINT, IS_WINDOWS, file_attributes
+from .fsutil import IS_WINDOWS, file_attributes
 from .largefiles import is_system_path
 
 MONTHS = ("Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto",
@@ -87,10 +87,11 @@ def plan_organize(folder: str, mode: str = "type") -> list[PlannedMove]:
             st = entry.stat(follow_symlinks=False)
         except OSError:
             continue
+        # Los enlaces simbólicos no son S_ISREG y se saltan. Los archivos de OneDrive sí se
+        # mueven (son "puntos de reanálisis" de nube, y moverlos dentro de OneDrive es seguro).
         if not stat.S_ISREG(st.st_mode):
             continue
-        attributes = file_attributes(st)
-        if attributes & (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_REPARSE_POINT):
+        if file_attributes(st) & (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM):
             continue
         lowered = entry.name.lower()
         if lowered in SKIP_NAMES or lowered.startswith(".") or os.path.splitext(lowered)[1] in SKIP_EXTENSIONS:
