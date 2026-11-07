@@ -17,7 +17,7 @@ from unittest import mock
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
-from limpiapc import cleaner, organizer  # noqa: E402
+from limpiapc import cleaner, freeup, organizer  # noqa: E402
 from limpiapc.platform_utils import IS_WINDOWS  # noqa: E402
 
 BASE = os.path.abspath(sys.argv[1])
@@ -48,6 +48,8 @@ _real_build = cleaner.build_categories
 def _fake_build():
     with mock.patch.dict(os.environ, FAKE_ENV), mock.patch.object(tempfile, "tempdir", TMP):
         categories = _real_build()
+    # La papelera es la real del equipo: fuera del recorrido.
+    categories = [c for c in categories if c.kind != "recycle_bin"]
     for category in categories:
         for target in category.targets:
             if not cleaner.is_within(cleaner.norm(target.base), cleaner.norm(FAKE)):
@@ -59,6 +61,16 @@ def _fake_build():
 
 cleaner.build_categories = _fake_build
 organizer.RECENT_SECONDS = -1  # los archivos de prueba se acaban de crear
+
+
+# --- «Liberar espacio»: nada de tareas de sistema reales (hibernación, DISM, cleanmgr…) ---
+def _no_system_tasks(*args, **kwargs):
+    raise SystemExit("ABORTADO: el recorrido intentó ejecutar una tarea de sistema real")
+
+
+freeup._detect_windows = lambda *args, **kwargs: None
+freeup._execute_windows = _no_system_tasks
+freeup.default_dev_root = lambda: HOME
 
 
 def mk(path, size, sparse=False, old=False, data=None):
@@ -76,17 +88,30 @@ def mk(path, size, sparse=False, old=False, data=None):
 
 # --- Datos de prueba -------------------------------------------------------
 chrome = os.path.join(LOCAL, "Google", "Chrome", "User Data", "Default")
-for i in range(40):
-    mk(os.path.join(chrome, "Cache", "Cache_Data", f"f_{i:04x}"), 300_000)
-    mk(os.path.join(HOME, ".cache", "google-chrome", "Default", "Cache", f"f_{i}"), 300_000)
+
+
+def make_caches():
+    for i in range(40):
+        mk(os.path.join(chrome, "Cache", "Cache_Data", f"f_{i:04x}"), 300_000)
+        mk(os.path.join(HOME, ".cache", "google-chrome", "Default", "Cache", f"f_{i}"), 300_000)
+    for i in range(20):
+        mk(os.path.join(LOCAL, "Microsoft", "Edge", "User Data", "Default", "Code Cache", "js", str(i)), 250_000)
+        mk(os.path.join(ROAMING, "discord", "Cache", "Cache_Data", str(i)), 120_000)
+    for i in range(12):
+        mk(os.path.join(LOCAL, "Microsoft", "Windows", "Explorer", f"thumbcache_{i}.db"), 80_000)
+        mk(os.path.join(HOME, ".cache", "thumbnails", "large", f"{i}.png"), 80_000)
+
+
+make_caches()
 mk(os.path.join(chrome, "Login Data"), 40_000)
 mk(os.path.join(chrome, "Bookmarks"), 20_000)
-for i in range(20):
-    mk(os.path.join(LOCAL, "Microsoft", "Edge", "User Data", "Default", "Code Cache", "js", str(i)), 250_000)
-    mk(os.path.join(ROAMING, "discord", "Cache", "Cache_Data", str(i)), 120_000)
-for i in range(12):
-    mk(os.path.join(LOCAL, "Microsoft", "Windows", "Explorer", f"thumbcache_{i}.db"), 80_000)
-    mk(os.path.join(HOME, ".cache", "thumbnails", "large", f"{i}.png"), 80_000)
+PROJECT = os.path.join(HOME, "Proyectos", "tienda-vieja")
+mk(os.path.join(PROJECT, "package.json"), 400)
+mk(os.path.join(PROJECT, "src", "App.jsx"), 3_000)
+for i in range(30):
+    mk(os.path.join(PROJECT, "node_modules", f"paquete{i}", "index.js"), 200_000)
+for entry in os.scandir(PROJECT):
+    os.utime(entry.path, (OLD - 60 * 86400, OLD - 60 * 86400))
 mk(os.path.join(WINDIR, "System32", "kernel32.dll"), 50_000)
 mk(os.path.join(HOME, "Documents", "tesis.docx"), 300_000)
 mk(os.path.join(HOME, "Documents", "presupuesto.xlsx"), 90_000)
@@ -172,8 +197,39 @@ def step(fn):
 
 
 @step
+def s_freeup():
+    page = pages["freeup"]
+    wait(lambda: page.analyzed and not page.busy, s_freeup_analyzed)
+
+
+@step
+def s_freeup_analyzed():
+    page = pages["freeup"]
+    ids = {row.task.id for row in page.rows}
+    check({"caches", "node_modules"} <= ids, f"liberar espacio: tareas detectadas {sorted(ids)}")
+    check(not any(row.task.needs_admin for row in page.rows), "el recorrido no ofrece tareas de sistema reales")
+    node_row = next(row for row in page.rows if row.task.id == "node_modules")
+    check(not node_row.var.get(), "node_modules viene desmarcado")
+    node_row.check.toggle()
+    shot("01_liberar_espacio")
+    page.free()
+    wait(lambda: not page.busy, s_freeup_done)
+
+
+@step
+def s_freeup_done():
+    shot("02_liberar_espacio_hecho")
+    check(not os.path.exists(os.path.join(PROJECT, "node_modules")), "node_modules del proyecto viejo borrado")
+    check(os.path.exists(os.path.join(PROJECT, "src", "App.jsx")), "el código del proyecto sigue intacto")
+    check(os.path.exists(os.path.join(HOME, "Documents", "tesis.docx")), "documentos intactos tras liberar")
+    make_caches()  # para probar también la pantalla de Limpieza
+    app.show("dashboard")
+    app.after(2500, s_dashboard)
+
+
+@step
 def s_dashboard():
-    shot("01_resumen")
+    shot("03_estado_pc")
     app.analyze_space(FAKE)
     wait(lambda: not pages["space"].busy, s_space)
 
@@ -193,15 +249,15 @@ def s_space():
     page.folder_tree.item(ana, open=True)
     page._expand(ana)
     page.folder_tree.selection_set(ana)
-    shot("02_espacio_carpetas")
+    shot("04_espacio_carpetas")
     page.show_view("types")
-    shot("03_espacio_tipos")
+    shot("05_espacio_tipos")
     page._show_type("video")
     check(all(f.type_id == "video" for f in page.file_by_iid.values()) and page.file_by_iid, "filtro por tipo")
     page._set_type_filter("all")
     first = page.files_tree.get_children()[0]
     page.files_tree.selection_set(first)
-    shot("04_espacio_archivos")
+    shot("06_espacio_archivos")
     app.show("clean")
     pages["clean"].start_scan()
     wait(lambda: not pages["clean"].busy, s_clean_scanned)
@@ -209,14 +265,14 @@ def s_space():
 
 @step
 def s_clean_scanned():
-    shot("05_limpieza_analizada")
+    shot("07_limpieza_analizada")
     pages["clean"].start_clean()
     wait(lambda: not pages["clean"].busy, s_clean_done)
 
 
 @step
 def s_clean_done():
-    shot("06_limpieza_hecha")
+    shot("08_limpieza_hecha")
     if IS_WINDOWS:
         check(os.listdir(os.path.join(chrome, "Cache", "Cache_Data")) == [], "caché de Chrome vaciada")
         check(os.path.exists(os.path.join(chrome, "Login Data")), "contraseñas de Chrome intactas")
@@ -230,7 +286,7 @@ def s_clean_done():
     app.show("organize")
     page._set_folder(DOWNLOADS)
     check(len(page.plan) == 9, f"propuesta de organización con 9 archivos (hay {len(page.plan)})")
-    shot("07_organizar_propuesta")
+    shot("09_organizar_propuesta")
     page.apply()
     wait(lambda: not page.busy, s_organized)
 
@@ -239,7 +295,7 @@ def s_clean_done():
 def s_organized():
     check(os.path.exists(os.path.join(DOWNLOADS, "Documentos", "factura_luz.pdf")), "PDF movido a Documentos")
     check(os.path.exists(os.path.join(DOWNLOADS, "Discord.lnk")), "accesos directos no se mueven")
-    shot("08_organizar_hecho")
+    shot("10_organizar_hecho")
     page = pages["organize"]
     page.undo()
     wait(lambda: not page.busy, s_undone)
@@ -262,28 +318,28 @@ def s_duplicates():
     page = pages["duplicates"]
     check(len(page.groups) == 2, f"2 grupos de duplicados (hay {len(page.groups)})")
     check(len(page.drop) == 3, "se marcan para borrar todas las copias menos una")
-    shot("09_duplicados")
+    shot("11_duplicados")
     app.show("startup")
     app.after(500, s_startup)
 
 
 @step
 def s_startup():
-    shot("10_inicio")
+    shot("12_inicio")
     app.show("tools")
     app.after(500, s_tools)
 
 
 @step
 def s_tools():
-    shot("11_herramientas")
+    shot("13_herramientas")
     app.show("dashboard")
     app.after(2500, s_final)
 
 
 @step
 def s_final():
-    shot("12_resumen_final")
+    shot("14_final")
     finish()
 
 
@@ -294,6 +350,6 @@ def finish():
     app.destroy()
 
 
-app.after(2500, s_dashboard)
+app.after(1000, s_freeup)
 app.mainloop()
 sys.exit(1 if failures else 0)

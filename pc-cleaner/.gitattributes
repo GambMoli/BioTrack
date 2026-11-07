@@ -1,3 +1,5 @@
-*.bat text eol=crlf
+# Los .bat se guardan tal cual, con CRLF (cmd.exe falla con saltos de linea LF en los goto)
+*.bat -text
 *.py text eol=lf
 *.pyw text eol=lf
+*.ico binary

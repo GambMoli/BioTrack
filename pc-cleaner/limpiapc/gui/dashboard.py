@@ -26,7 +26,7 @@ TIPS = (
 
 
 class DashboardPage(Page):
-    title = "Resumen"
+    title = "Estado del PC"
 
     def __init__(self, app):
         super().__init__(app)
@@ -52,7 +52,7 @@ class DashboardPage(Page):
         self.clean_note = label(clean_card, "Analiza para ver cuánto puedes liberar.", F.small, C.muted,
                                 justify="left", wraplength=px(240))
         self.clean_note.pack(anchor="w", pady=(0, px(8)))
-        FlatButton(clean_card, "Buscar basura", self._analyze, small=True).pack(anchor="w")
+        FlatButton(clean_card, "Liberar espacio", self._analyze, small=True).pack(anchor="w")
 
         bottom = tk.Frame(self.body, bg=C.bg)
         bottom.pack(fill="both", expand=True, pady=(px(16), 0))
@@ -97,8 +97,7 @@ class DashboardPage(Page):
         return value, bar, note_label
 
     def _analyze(self):
-        self.app.show("clean")
-        self.app.pages["clean"].start_scan()
+        self.app.show("freeup")
 
     def set_recoverable(self, size: int, categories: int) -> None:
         self.clean_title.configure(text="ESPACIO RECUPERABLE")

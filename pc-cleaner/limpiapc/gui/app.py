@@ -17,6 +17,7 @@ from . import theme
 from .clean import CleanPage
 from .dashboard import DashboardPage
 from .duplicates_page import DuplicatesPage
+from .freeup_page import FreeUpPage
 from .organize import OrganizePage
 from .space import SpacePage
 from .startup_page import StartupPage
@@ -26,9 +27,9 @@ from .widgets import FlatButton, Page, label
 
 
 class Sidebar(tk.Frame):
-    ITEMS = (("dashboard", "Resumen"), ("space", "Análisis de espacio"), ("clean", "Limpieza"),
+    ITEMS = (("freeup", "Liberar espacio"), ("space", "Análisis de espacio"), ("clean", "Limpieza a medida"),
              ("organize", "Organizar"), ("duplicates", "Duplicados"), ("startup", "Programas al iniciar"),
-             ("tools", "Herramientas"))
+             ("dashboard", "Estado del PC"), ("tools", "Herramientas"))
 
     def __init__(self, app: "App"):
         super().__init__(app, bg=C.sidebar, width=px(230))
@@ -88,8 +89,9 @@ class Sidebar(tk.Frame):
 
 
 class App(tk.Tk):
-    def __init__(self):
+    def __init__(self, selftest: bool = False):
         super().__init__()
+        self.selftest = selftest  # en la autoprueba no se lanza ningún análisis automático
         theme.set_scale(self)
         F.init(self)
         self.title(APP_NAME)
@@ -117,11 +119,11 @@ class App(tk.Tk):
         self.content = tk.Frame(self, bg=C.bg)
         self.content.pack(side="left", fill="both", expand=True)
         self.pages: dict[str, Page] = {}
-        for key, page_class in (("dashboard", DashboardPage), ("space", SpacePage), ("clean", CleanPage),
-                                ("organize", OrganizePage), ("duplicates", DuplicatesPage),
-                                ("startup", StartupPage), ("tools", ToolsPage)):
+        for key, page_class in (("dashboard", DashboardPage), ("freeup", FreeUpPage), ("space", SpacePage),
+                                ("clean", CleanPage), ("organize", OrganizePage),
+                                ("duplicates", DuplicatesPage), ("startup", StartupPage), ("tools", ToolsPage)):
             self.pages[key] = page_class(self)
-        self.show("dashboard")
+        self.show("freeup")
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.after(50, self._poll)
 
@@ -224,7 +226,7 @@ def _selftest() -> int:
     """
     errors: list[str] = []
     try:
-        app = App()
+        app = App(selftest=True)
         app.report_callback_exception = lambda et, ev, tb: errors.append(
             "".join(traceback.format_exception(et, ev, tb)))
         app._show_error = lambda exc: errors.append(repr(exc))  # sin ventanas modales
